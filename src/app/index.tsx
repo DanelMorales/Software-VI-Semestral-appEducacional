@@ -1,90 +1,76 @@
-// src/app/index.tsx
-import {
-  ComicRelief_400Regular,
-  ComicRelief_700Bold,
-  useFonts,
-} from "@expo-google-fonts/comic-relief";
+import { obtenerNombre, obtenerUltimoPuntaje } from "@/services/storage";
 import { router } from "expo-router";
-import { useState } from "react";
-import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { guardarNombre } from "../services/storage";
+import { useEffect, useState } from "react";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-export default function BienvenidaScreen() {
+// Medidas de referencia del diseño en Figma (frame de 453 x 906)
+const DESIGN_WIDTH = 453;
+const DESIGN_HEIGHT = 906;
+
+export default function InicioScreen() {
   const [nombre, setNombre] = useState("");
+  const [puntaje, setPuntaje] = useState(0);
 
-  const [fontsLoaded] = useFonts({
-    ComicRelief_400Regular,
-    ComicRelief_700Bold,
-  });
-
-  const continuar = async (nombreFinal: string) => {
-    await guardarNombre(nombreFinal);
-    router.replace("/inicio");
-  };
-
-  if (!fontsLoaded) {
-    // Puedes reemplazar esto por un splash/loader si ya tienes uno configurado
-    return <View style={styles.screen} />;
-  }
+  useEffect(() => {
+    const cargarDatos = async () => {
+      const nombreGuardado = await obtenerNombre();
+      const puntajeGuardado = await obtenerUltimoPuntaje();
+      setNombre(nombreGuardado || "Explorador");
+      setPuntaje(puntajeGuardado);
+    };
+    cargarDatos();
+  }, []);
 
   return (
-    <View style={styles.screen}>
-      {/* Fondo a pantalla completa — reemplaza el fondo blanco original */}
+    <View style={styles.container}>
+      {/* 1) FONDO — tu granja a pantalla completa */}
       <Image
-        source={require("../../assets/images/background.jpg")}
+        source={require("@/assets/images/background.jpg")}
         style={styles.background}
         resizeMode="cover"
       />
 
-      <View style={styles.content}>
-        <View style={styles.barnWrap}>
-          <Image
-            source={require("../../assets/images/titulo.png")}
-            style={styles.tituloImage}
-            resizeMode="contain"
-          />
+      {/* 2) TARJETA / PANEL — tu fondoBienvenida.png (caja de arriba en
+          blanco para el título, tablita en blanco para el puntaje) */}
+      <View style={styles.card}>
+        <Image
+          source={require("@/assets/images/fondoBienvenida.png")}
+          style={styles.cardImage}
+          resizeMode="stretch"
+        />
+
+        {/* Texto dinámico encima de tarjeta.png (nombre real + puntaje real) */}
+        <View style={styles.textoOverlay} pointerEvents="none">
+          <Text style={styles.titulo}>Hola, {nombre}!</Text>
+          <Text style={styles.subtitulo}>tu ultimo puntaje:</Text>
         </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>¿Cómo te llamas?</Text>
-          <TextInput
-            value={nombre}
-            onChangeText={setNombre}
-            placeholder="Tu nombre"
-            placeholderTextColor="#b0b0b0"
-            style={styles.input}
-          />
+        {/* Número del puntaje, posicionado sobre la tablita de madera
+            que viene dibujada dentro de tarjeta.png */}
+        <View style={styles.puntajeOverlay} pointerEvents="none">
+          <Text style={styles.puntajeTexto}>{puntaje}</Text>
         </View>
 
-        <View style={styles.buttons}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.btnGuest,
-              pressed && styles.btnPressed,
-            ]}
-            onPress={() => continuar(nombre || "Explorador")}
-          >
-            <Text style={styles.btnGuestText}>CONTINUAR</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.btnLogin,
-              pressed && styles.btnPressed,
-            ]}
-            onPress={() => continuar("Invitado")}
-          >
-            <Text style={styles.btnLoginText}>CONTINUAR COMO INVITADO</Text>
-          </Pressable>
-        </View>
+        {/* 3) BOTÓN JUGAR — mismo estilo que el botón coral de BienvenidaScreen */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.botonJugar,
+            pressed && styles.botonPresionado,
+          ]}
+          onPress={() => router.push("/actividad")}
+        >
+          <Text style={styles.jugarTexto}>JUGAR</Text>
+        </Pressable>
       </View>
+
+      {/* 4) FLECHA DE REGRESO — pon aquí el png del botón circular con flecha */}
+      <Pressable style={styles.flecha} onPress={() => router.back()}>
+        <Image
+          source={require("@/assets/images/flecha.png")}
+          style={styles.flechaImage}
+          resizeMode="contain"
+        />
+      </Pressable>
     </View>
   );
 }
@@ -95,10 +81,8 @@ const COLORS = {
 };
 
 const styles = StyleSheet.create({
-  screen: {
+  container: {
     flex: 1,
-    backgroundColor: COLORS.white,
-    position: "relative",
   },
   background: {
     position: "absolute",
@@ -109,73 +93,69 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  // Todo el contenido va encima del fondo
-  content: {
-    flex: 1,
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
+
+  // Rectángulo redondeado 1 → left:0, top:155, w:390.5, h:441.7 (sobre 453x906)
+  card: {
+    position: "absolute",
+    left: `${(0 / DESIGN_WIDTH) * 100}%`,
+    top: `${(155 / DESIGN_HEIGHT) * 100}%`,
+    width: `${(390.525 / DESIGN_WIDTH) * 100}%`,
+    height: `${(441.681 / DESIGN_HEIGHT) * 100}%`,
   },
-  barnWrap: {
-    flex: 1,
+  cardImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  // Título + subtítulo — caja clara de arriba en fondoBienvenida.png
+  // (medido directo del png: x 121-1619, y 248-703 sobre 1667x1961)
+  textoOverlay: {
+    position: "absolute",
+    left: "7.3%",
+    top: "12.6%",
+    width: "89.9%",
+    height: "23.2%",
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  titulo: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#7A4A21",
+  },
+  subtitulo: {
+    fontSize: 18,
+    color: "#7A4A21",
+    marginTop: 4,
+  },
+
+  // Puntaje — sobre la tablita de madera en fondoBienvenida.png
+  // (medido directo del png: x 179-1526, y 882-1254 sobre 1667x1961)
+  puntajeOverlay: {
+    position: "absolute",
+    left: "10.7%",
+    top: "45%",
+    width: "80.8%",
+    height: "19%",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -100, // aqui se configura si quiero subir o bajar el titulo
   },
-  tituloImage: {
-    width: "100%",
-    height: 230,
+  puntajeTexto: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#FFF8EC",
   },
-  form: {
-    marginBottom: 24,
-  },
-  label: {
-    fontFamily: "ComicRelief_700Bold",
-    fontSize: 16,
-    color: "#333333",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#dddddd",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontFamily: "ComicRelief_400Regular",
-    fontSize: 16,
-    color: "#333333",
-    textAlign: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
-  },
-  buttons: {
-    gap: 18,
-    marginBottom: 150,
-  },
-  btnGuest: {
+
+  // Rectangle 1 (botón) → left:122, top:493, w:184, h:61 (relativo a pantalla completa)
+  // convertido a relativo dentro de "card" (top:155): top = 493-155 = 338
+  botonJugar: {
+    position: "absolute",
+    left: `${((122 - 0) / 390.525) * 100}%`,
+    top: `${((493 - 155) / 441.681) * 100}%`,
+    width: `${(184 / 390.525) * 100}%`,
+    height: `${(61 / 441.681) * 100}%`,
     backgroundColor: COLORS.coral,
     borderRadius: 10,
-    height: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    // sombra igual al diseño de Figma: 0px 4px 4px rgba(0,0,0,0.25)
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  btnGuestText: {
-    color: COLORS.white,
-    fontFamily: "ComicRelief_700Bold",
-    fontSize: 20,
-    letterSpacing: 0.5,
-  },
-  btnLogin: {
-    backgroundColor: COLORS.white,
-    borderRadius: 10,
-    height: 50,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000000",
@@ -184,13 +164,26 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  btnLoginText: {
-    color: COLORS.coral,
-    fontFamily: "ComicRelief_700Bold",
-    fontSize: 18,
-    letterSpacing: 0.5,
-  },
-  btnPressed: {
+  botonPresionado: {
     transform: [{ scale: 0.98 }],
+  },
+  jugarTexto: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.white,
+    letterSpacing: 0.5,
+  },
+
+  // flecha 1 → left:23, top:26, w:99, h:101 (sobre 453x906)
+  flecha: {
+    position: "absolute",
+    left: `${(23 / DESIGN_WIDTH) * 100}%`,
+    top: `${(26 / DESIGN_HEIGHT) * 100}%`,
+    width: `${(99 / DESIGN_WIDTH) * 100}%`,
+    height: `${(101 / DESIGN_HEIGHT) * 100}%`,
+  },
+  flechaImage: {
+    width: "100%",
+    height: "100%",
   },
 });
